@@ -1,13 +1,23 @@
 import '../models/pose.dart';
 
-enum ShootState { searching, tracking, guiding, almost, perfect, shooting, reviewing, next, complete }
+enum ShootState {
+  searching,
+  tracking,
+  guiding,
+  almost,
+  perfect,
+  shooting,
+  reviewing,
+  next,
+  complete
+}
 
 class SessionEngine {
   final int total;
   int current = 0;
   ShootState state = ShootState.searching;
   final List<String> shots = [];
-  SessionEngine({this.total=10});
+  SessionEngine({this.total = 10});
 
   PoseTarget get target => poseLibrary[current % poseLibrary.length];
 
