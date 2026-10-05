@@ -186,7 +186,7 @@ class _CameraScreenState extends State<CameraScreen> {
       }
       final pose = poses.first;
       final joints = <String, JointPoint>{};
-      const mapping = <String, PoseLandmarkType>{
+      final mapping = <String, PoseLandmarkType>{
         'leftShoulder': PoseLandmarkType.leftShoulder,
         'rightShoulder': PoseLandmarkType.rightShoulder,
         'leftHip': PoseLandmarkType.leftHip,
