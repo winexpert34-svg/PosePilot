@@ -280,7 +280,7 @@ class _CameraScreenState extends State<CameraScreen> {
             child: c == null || !c.value.isInitialized
                 ? Center(child: Text(error ?? 'Opening camera…'))
                 : Stack(children: [
-                    Positioned.fill(child: CameraPreview(c)),
+                    Positioned.fill(child: CameraPreview(c!)),
                     Positioned.fill(child: GhostOverlay(score: score)),
                     Positioned(
                         top: 16,
