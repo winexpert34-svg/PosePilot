@@ -387,6 +387,7 @@ personVisibleInPhoto =
         // Weak/partial tracking must never become an AI Pick.
         final humanPenalty =
           personVisibleInPhoto && trackingQuality >= 0.55 ? 1.0 : 0.0;
+        final eligibleForAiPick = personVisibleInPhoto && trackingQuality >= 0.55 && poseQuality >= 0.35;
 
       final quality =
           (baseQuality * qualityPenalty * humanPenalty).clamp(0.0, 1.0);
@@ -399,7 +400,7 @@ personVisibleInPhoto =
           exposureQuality >= 0.35 &&
           quality >= 0.42;
 
-      if (acceptShot) {
+      if (acceptShot && eligibleForAiPick) {
         session.acceptShot(photo.path);
       }
 
