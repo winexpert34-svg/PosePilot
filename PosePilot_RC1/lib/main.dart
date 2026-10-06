@@ -19,7 +19,7 @@ class PosePilot extends StatelessWidget {
   Widget build(BuildContext context) => MaterialApp(
       debugShowCheckedModeBanner: false,
       theme: ThemeData.dark(),
-      home: const CameraScreen());
+      home: const SplashScreen());
 }
 
 class SplashScreen extends StatefulWidget {
@@ -132,7 +132,7 @@ class _CameraScreenState extends State<CameraScreen> {
       await c.initialize();
       camera = c;
       if (mounted) setState(() {});
-      await c.startImageStream(analyze);
+      // ML pose stream temporarily disabled for stable Android camera startup.
     } catch (e) {
       if (mounted) setState(() => error = '$e');
     }
@@ -240,12 +240,12 @@ class _CameraScreenState extends State<CameraScreen> {
         });
       gate.reset();
       if (session.state != ShootState.complete && c.value.isInitialized)
-        await c.startImageStream(analyze);
+        // ML pose stream temporarily disabled for stable Android camera startup.
     } catch (e) {
       if (mounted) setState(() => error = 'Capture error: $e');
       if (c.value.isInitialized && !c.value.isStreamingImages) {
         try {
-          await c.startImageStream(analyze);
+          // ML pose stream temporarily disabled for stable Android camera startup.
         } catch (_) {}
       }
     } finally {
