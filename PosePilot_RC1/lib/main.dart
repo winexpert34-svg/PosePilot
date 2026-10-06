@@ -499,7 +499,7 @@ class _CameraScreenState extends State<CameraScreen> {
                             ScaffoldMessenger.of(context).showSnackBar(
                               const SnackBar(
                                 content:
-                                    Text('LIGHT AI • Analyzing your light'),
+                                    Text('LIGHT AI • $lightAdvice • ${(lightLevel * 100).round()}%'),
                                 behavior: SnackBarBehavior.floating,
                                 duration: Duration(seconds: 2),
                               ),
