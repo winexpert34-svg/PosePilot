@@ -1,3 +1,4 @@
+import 'package:gal/gal.dart';
 import 'models/pose.dart';
 import 'dart:io';
 import 'package:camera/camera.dart';
@@ -251,14 +252,14 @@ class _CameraScreenState extends State<CameraScreen> {
         error = null;
       });
       if (stable && auto && !shooting) {
-          gate.reset();
-          if (mounted) {
-            setState(() => guidance = 'Perfect ✨ Hold still…');
-          }
-          await Future.delayed(const Duration(milliseconds: 450));
-          if (!mounted || shooting) return;
-          await shoot();
+        gate.reset();
+        if (mounted) {
+          setState(() => guidance = 'Perfect ✨ Hold still…');
         }
+        await Future.delayed(const Duration(milliseconds: 450));
+        if (!mounted || shooting) return;
+        await shoot();
+      }
     } catch (e) {
       if (mounted) setState(() => error = 'Pose detection error: $e');
     } finally {
@@ -274,40 +275,45 @@ class _CameraScreenState extends State<CameraScreen> {
       if (c.value.isStreamingImages) await c.stopImageStream();
       final photo = await c.takePicture();
 
+      // Save every captured PosePilot photo to the phone gallery.
+      try {
+        await Gal.putImage(photo.path, album: 'PosePilot');
+      } catch (e) {
+        debugPrint('PosePilot gallery save failed: $e');
+      }
+
       // PosePilot ShotQuality v1
       final poseQuality = score.clamp(0.0, 1.0);
       final trackingQuality = confidence.clamp(0.0, 1.0);
       final exposureQuality =
           (1.0 - ((lightLevel - 0.55).abs() / 0.55)).clamp(0.0, 1.0);
 
-      final baseQuality = (
-          poseQuality * 0.50 +
-          trackingQuality * 0.25 +
-          exposureQuality * 0.25
-        ).clamp(0.0, 1.0);
+      final baseQuality =
+          (poseQuality * 0.50 + trackingQuality * 0.25 + exposureQuality * 0.25)
+              .clamp(0.0, 1.0);
 
-        // ShotQuality v2: suppress unusable frames before AI Picks ranking.
-        double qualityPenalty = 1.0;
+      // ShotQuality v2: suppress unusable frames before AI Picks ranking.
+      double qualityPenalty = 1.0;
 
-        if (trackingQuality < 0.30) {
-          qualityPenalty *= 0.35;
-        } else if (trackingQuality < 0.50) {
-          qualityPenalty *= 0.70;
-        }
+      if (trackingQuality < 0.30) {
+        qualityPenalty *= 0.35;
+      } else if (trackingQuality < 0.50) {
+        qualityPenalty *= 0.70;
+      }
 
-        if (exposureQuality < 0.25) {
-          qualityPenalty *= 0.40;
-        } else if (exposureQuality < 0.45) {
-          qualityPenalty *= 0.75;
-        }
+      if (exposureQuality < 0.25) {
+        qualityPenalty *= 0.40;
+      } else if (exposureQuality < 0.45) {
+        qualityPenalty *= 0.75;
+      }
 
-        // Human-first AI Picks v3.
+      // Human-first AI Picks v3.
 // No reliably detected person = never an AI Pick.
 // Photo remains available in ALL.
-final humanPenalty = trackingQuality < 0.30 ? 0.0 : 1.0;
+      final humanPenalty = trackingQuality < 0.30 ? 0.0 : 1.0;
 
-final quality =
-    (baseQuality * qualityPenalty * humanPenalty).clamp(0.0, 1.0);
+      final quality =
+          (baseQuality * qualityPenalty * humanPenalty).clamp(0.0, 1.0);
 
       captures.add(photo.path);
       shotQuality[photo.path] = quality;
@@ -599,7 +605,7 @@ final quality =
                             MaterialPageRoute(
                               builder: (_) => Gallery(
                                 paths: List.of(captures),
-                          quality: Map.of(shotQuality),
+                                quality: Map.of(shotQuality),
                               ),
                             ),
                           ),
@@ -799,8 +805,8 @@ class _GalleryState extends State<Gallery> {
       // Rank photos by PosePilot ShotQuality.
       final ranked = List<String>.of(widget.paths)
         ..sort(
-          (a, b) => (widget.quality[b] ?? 0.0)
-              .compareTo(widget.quality[a] ?? 0.0),
+          (a, b) =>
+              (widget.quality[b] ?? 0.0).compareTo(widget.quality[a] ?? 0.0),
         );
 
       return ranked.take(ranked.length < 3 ? ranked.length : 3).toList();
