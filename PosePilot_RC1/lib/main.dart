@@ -274,7 +274,7 @@ class _CameraScreenState extends State<CameraScreen> {
     shooting = true;
     try {
       if (c.value.isStreamingImages) await c.stopImageStream();
-final photo = await c.takePicture();
+      final photo = await c.takePicture();
 
       // Verify the actual captured JPEG before AI Picks.
       // Streaming state can be stale after the person leaves the frame.
@@ -295,54 +295,50 @@ final photo = await c.takePicture();
           final rightHip = lk(PoseLandmarkType.rightHip);
           final nose = lk(PoseLandmarkType.nose);
 
-          final strongTorso =
-              leftShoulder >= 0.65 &&
+          final strongTorso = leftShoulder >= 0.65 &&
               rightShoulder >= 0.65 &&
               leftHip >= 0.60 &&
               rightHip >= 0.60;
 
           final strongUpperBody =
-              leftShoulder >= 0.70 &&
-              rightShoulder >= 0.70 &&
-              nose >= 0.60;
+              leftShoulder >= 0.70 && rightShoulder >= 0.70 && nose >= 0.60;
 
           // Human geometry validation: confidence alone is not enough.
 // This rejects false ML Kit poses on furniture, radiators and room objects.
-bool plausibleHumanGeometry = false;
+          bool plausibleHumanGeometry = false;
 
-if (capturedPoses.isNotEmpty) {
-  final pose = capturedPoses.first;
+          if (capturedPoses.isNotEmpty) {
+            final pose = capturedPoses.first;
 
-  double dist(PoseLandmarkType a, PoseLandmarkType b) {
-    final pa = pose.landmarks[a];
-    final pb = pose.landmarks[b];
-    if (pa == null || pb == null) return 0.0;
-    final dx = pa.x - pb.x;
-    final dy = pa.y - pb.y;
-    return sqrt(dx * dx + dy * dy);
-  }
+            double dist(PoseLandmarkType a, PoseLandmarkType b) {
+              final pa = pose.landmarks[a];
+              final pb = pose.landmarks[b];
+              if (pa == null || pb == null) return 0.0;
+              final dx = pa.x - pb.x;
+              final dy = pa.y - pb.y;
+              return sqrt(dx * dx + dy * dy);
+            }
 
-  final shoulderWidth =
-      dist(PoseLandmarkType.leftShoulder, PoseLandmarkType.rightShoulder);
-  final hipWidth =
-      dist(PoseLandmarkType.leftHip, PoseLandmarkType.rightHip);
-  final torsoLeft =
-      dist(PoseLandmarkType.leftShoulder, PoseLandmarkType.leftHip);
-  final torsoRight =
-      dist(PoseLandmarkType.rightShoulder, PoseLandmarkType.rightHip);
+            final shoulderWidth = dist(
+                PoseLandmarkType.leftShoulder, PoseLandmarkType.rightShoulder);
+            final hipWidth =
+                dist(PoseLandmarkType.leftHip, PoseLandmarkType.rightHip);
+            final torsoLeft =
+                dist(PoseLandmarkType.leftShoulder, PoseLandmarkType.leftHip);
+            final torsoRight =
+                dist(PoseLandmarkType.rightShoulder, PoseLandmarkType.rightHip);
 
-  final torsoLength = (torsoLeft + torsoRight) / 2.0;
+            final torsoLength = (torsoLeft + torsoRight) / 2.0;
 
-  plausibleHumanGeometry =
-      shoulderWidth > 12.0 &&
-      hipWidth > 8.0 &&
-      torsoLength > 18.0 &&
-      torsoLength < shoulderWidth * 4.5 &&
-      shoulderWidth < torsoLength * 3.5;
-}
+            plausibleHumanGeometry = shoulderWidth > 12.0 &&
+                hipWidth > 8.0 &&
+                torsoLength > 18.0 &&
+                torsoLength < shoulderWidth * 4.5 &&
+                shoulderWidth < torsoLength * 3.5;
+          }
 
-personVisibleInPhoto =
-    (strongTorso || strongUpperBody) && plausibleHumanGeometry;
+          personVisibleInPhoto =
+              (strongTorso || strongUpperBody) && plausibleHumanGeometry;
         }
       } catch (e) {
         debugPrint('PosePilot captured-photo person check failed: $e');
@@ -384,10 +380,12 @@ personVisibleInPhoto =
 // No reliably detected person = never an AI Pick.
 // Photo remains available in ALL.
       // AI Picks v4: require a reliably visible person.
-        // Weak/partial tracking must never become an AI Pick.
-        final humanPenalty =
+      // Weak/partial tracking must never become an AI Pick.
+      final humanPenalty =
           personVisibleInPhoto && trackingQuality >= 0.55 ? 1.0 : 0.0;
-        final eligibleForAiPick = personVisibleInPhoto && trackingQuality >= 0.55 && poseQuality >= 0.35;
+      // AI Picks v5: trust captured JPEG human verification.
+      // Live camera tracking may be stale after takePicture().
+      final eligibleForAiPick = personVisibleInPhoto;
 
       final quality =
           (baseQuality * qualityPenalty * humanPenalty).clamp(0.0, 1.0);
@@ -396,9 +394,7 @@ personVisibleInPhoto =
       shotQuality[photo.path] = quality;
       // AI Photographer 2.0 — review before advancing.
       final acceptShot =
-          trackingQuality >= 0.45 &&
-          exposureQuality >= 0.35 &&
-          quality >= 0.42;
+          trackingQuality >= 0.45 && exposureQuality >= 0.35 && quality >= 0.42;
 
       if (acceptShot && eligibleForAiPick) {
         session.acceptShot(photo.path);
