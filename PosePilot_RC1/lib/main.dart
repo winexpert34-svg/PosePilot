@@ -284,7 +284,6 @@ class _CameraScreenState extends State<CameraScreen> {
                   Positioned.fill(child: CameraPreview(c)),
                   Positioned.fill(
                     child: GhostOverlay(
-                      pose: session.target,
                       score: score,
                     ),
                   ),
