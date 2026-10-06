@@ -454,7 +454,16 @@ class _CameraScreenState extends State<CameraScreen> {
                         _cameraAction(
                           icon: Icons.light_mode_outlined,
                           label: 'LIGHT',
-                          onTap: () {},
+                          onTap: () {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content:
+                                    Text('LIGHT AI • Analyzing your light'),
+                                behavior: SnackBarBehavior.floating,
+                                duration: Duration(seconds: 2),
+                              ),
+                            );
+                          },
                         ),
                         GestureDetector(
                           onTap: shooting ? null : shoot,
