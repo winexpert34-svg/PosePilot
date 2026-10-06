@@ -19,77 +19,7 @@ class PosePilot extends StatelessWidget {
   Widget build(BuildContext context) => MaterialApp(
       debugShowCheckedModeBanner: false,
       theme: ThemeData.dark(),
-      home: const SplashScreen());
-}
-
-class SplashScreen extends StatefulWidget {
-  const SplashScreen({super.key});
-
-  @override
-  State<SplashScreen> createState() => _SplashScreenState();
-}
-
-class _SplashScreenState extends State<SplashScreen> {
-  @override
-  void initState() {
-    super.initState();
-
-    Future.delayed(const Duration(seconds: 2), () {
-      if (!mounted) return;
-
-      Navigator.of(context).pushReplacement(
-        MaterialPageRoute(
-          builder: (_) => const CameraScreen(),
-        ),
-      );
-    });
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return const Scaffold(
-      backgroundColor: Color(0xFF0B0B0D),
-      body: SafeArea(
-        child: Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(
-                Icons.camera_alt_outlined,
-                size: 72,
-                color: Color(0xFFB8A7FF),
-              ),
-              SizedBox(height: 28),
-              Text(
-                'POSEPILOT',
-                style: TextStyle(
-                  fontSize: 34,
-                  fontWeight: FontWeight.w700,
-                  letterSpacing: 6,
-                ),
-              ),
-              SizedBox(height: 12),
-              Text(
-                'Your Personal AI Photographer',
-                style: TextStyle(
-                  fontSize: 16,
-                  color: Color(0xFFB8A7FF),
-                ),
-              ),
-              SizedBox(height: 80),
-              Text(
-                'Created by Dmitrijs Zigilijs',
-                style: TextStyle(
-                  fontSize: 14,
-                  color: Color(0xFF9B9BA1),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
+      home: const CameraScreen());
 }
 
 class CameraScreen extends StatefulWidget {
@@ -132,7 +62,7 @@ class _CameraScreenState extends State<CameraScreen> {
       await c.initialize();
       camera = c;
       if (mounted) setState(() {});
-      // ML pose stream temporarily disabled for stable Android camera startup.
+      // CRASHFIX: ML stream disabled during startup
     } catch (e) {
       if (mounted) setState(() => error = '$e');
     }
@@ -186,7 +116,7 @@ class _CameraScreenState extends State<CameraScreen> {
       }
       final pose = poses.first;
       final joints = <String, JointPoint>{};
-      final mapping = <String, PoseLandmarkType>{
+      const mapping = <String, PoseLandmarkType>{
         'leftShoulder': PoseLandmarkType.leftShoulder,
         'rightShoulder': PoseLandmarkType.rightShoulder,
         'leftHip': PoseLandmarkType.leftHip,
@@ -239,12 +169,13 @@ class _CameraScreenState extends State<CameraScreen> {
               : session.target.cue;
         });
       gate.reset();
-      // ML pose stream temporarily disabled for stable Android camera startup.
+      if (session.state != ShootState.complete && c.value.isInitialized)
+        await c.startImageStream(analyze);
     } catch (e) {
       if (mounted) setState(() => error = 'Capture error: $e');
       if (c.value.isInitialized && !c.value.isStreamingImages) {
         try {
-          // ML pose stream temporarily disabled for stable Android camera startup.
+          await c.startImageStream(analyze);
         } catch (_) {}
       }
     } finally {
@@ -279,7 +210,7 @@ class _CameraScreenState extends State<CameraScreen> {
             child: c == null || !c.value.isInitialized
                 ? Center(child: Text(error ?? 'Opening camera…'))
                 : Stack(children: [
-                    Positioned.fill(child: CameraPreview(c!)),
+                    Positioned.fill(child: CameraPreview(c)),
                     Positioned.fill(child: GhostOverlay(score: score)),
                     Positioned(
                         top: 16,
