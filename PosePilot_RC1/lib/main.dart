@@ -571,6 +571,7 @@ class _CameraScreenState extends State<CameraScreen> {
                             MaterialPageRoute(
                               builder: (_) => Gallery(
                                 paths: List.of(captures),
+                          quality: Map.of(shotQuality),
                               ),
                             ),
                           ),
