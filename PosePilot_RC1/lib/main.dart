@@ -317,13 +317,26 @@ class _CameraScreenState extends State<CameraScreen> {
 
       captures.add(photo.path);
       shotQuality[photo.path] = quality;
-      session.acceptShot(photo.path);
-      if (mounted)
+
+      // AI Photographer 2.0: review the shot before advancing.
+      final acceptShot = trackingQuality >= 0.45 &&
+          exposureQuality >= 0.35 &&
+          quality >= 0.42;
+
+      if (acceptShot) {
+        session.onAcceptShot(photo.path);
+      }
+
+      if (mounted) {
         setState(() {
           score = 0;
-          guidance = session.state == ShootState.complete
-              ? 'Session complete'
-              : session.target.cue;
+          guidance = acceptShot
+              ? (session.state == ShootState.complete
+                  ? 'Session complete ✨'
+                  : 'Great shot ✨ Next pose')
+              : 'Let’s retry this shot';
+        });
+      }
         });
       gate.reset();
       if (session.state != ShootState.complete && c.value.isInitialized)
