@@ -270,87 +270,270 @@ class _CameraScreenState extends State<CameraScreen> {
   @override
   Widget build(BuildContext context) {
     final c = camera;
+    const accent = Color(0xFFB8A7FF);
+
     return Scaffold(
-        backgroundColor: const Color(0xFF0B0B0D),
-        body: SafeArea(
-            child: c == null || !c.value.isInitialized
-                ? Center(child: Text(error ?? 'Opening camera…'))
-                : Stack(children: [
-                    Positioned.fill(child: CameraPreview(c)),
-                    Positioned.fill(child: GhostOverlay(score: score)),
-                    Positioned(
-                        top: 16,
-                        left: 16,
-                        right: 16,
-                        child: Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      backgroundColor: const Color(0xFF0B0B0D),
+      body: SafeArea(
+        child: c == null || !c.value.isInitialized
+            ? const Center(
+                child: CircularProgressIndicator(color: accent),
+              )
+            : Stack(
+                children: [
+                  Positioned.fill(child: CameraPreview(c)),
+                  Positioned.fill(
+                    child: GhostOverlay(
+                      pose: session.target,
+                      score: score,
+                    ),
+                  ),
+
+                  // Top premium bar
+                  Positioned(
+                    top: 14,
+                    left: 18,
+                    right: 18,
+                    child: Row(
+                      children: [
+                        const Text(
+                          'POSEPILOT',
+                          style: TextStyle(
+                            fontSize: 17,
+                            fontWeight: FontWeight.w700,
+                            letterSpacing: 3.2,
+                            color: Colors.white,
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 9,
+                            vertical: 5,
+                          ),
+                          decoration: BoxDecoration(
+                            color: accent.withOpacity(.18),
+                            borderRadius: BorderRadius.circular(20),
+                            border: Border.all(
+                              color: accent.withOpacity(.55),
+                            ),
+                          ),
+                          child: const Row(
+                            mainAxisSize: MainAxisSize.min,
                             children: [
-                              const Text('POSEPILOT',
-                                  style: TextStyle(
-                                      fontWeight: FontWeight.bold,
-                                      letterSpacing: 3)),
+                              Icon(
+                                Icons.auto_awesome,
+                                size: 13,
+                                color: accent,
+                              ),
+                              SizedBox(width: 4),
                               Text(
-                                  '${session.current}/${session.total} captured')
-                            ])),
-                    Positioned(
-                        left: 16,
-                        right: 16,
-                        bottom: 115,
-                        child: Container(
-                            padding: const EdgeInsets.all(16),
+                                'AI',
+                                style: TextStyle(
+                                  color: accent,
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const Spacer(),
+                        Text(
+                          '${session.current}/${session.total}',
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 15,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+
+                  // Guidance glass card
+                  Positioned(
+                    left: 18,
+                    right: 18,
+                    bottom: 132,
+                    child: Container(
+                      padding: const EdgeInsets.fromLTRB(20, 17, 20, 16),
+                      decoration: BoxDecoration(
+                        color: const Color(0xE61A191F),
+                        borderRadius: BorderRadius.circular(24),
+                        border: Border.all(
+                          color: Colors.white.withOpacity(.10),
+                        ),
+                        boxShadow: const [
+                          BoxShadow(
+                            blurRadius: 24,
+                            color: Color(0x55000000),
+                            offset: Offset(0, 10),
+                          ),
+                        ],
+                      ),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            session.state == ShootState.complete
+                                ? 'Session Complete'
+                                : session.target.name,
+                            textAlign: TextAlign.center,
+                            style: const TextStyle(
+                              color: accent,
+                              fontSize: 18,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          Text(
+                            error ?? guidance,
+                            textAlign: TextAlign.center,
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 17,
+                              height: 1.25,
+                            ),
+                          ),
+                          const SizedBox(height: 14),
+                          ClipRRect(
+                            borderRadius: BorderRadius.circular(8),
+                            child: LinearProgressIndicator(
+                              minHeight: 5,
+                              value: score.clamp(0, 1),
+                              backgroundColor: Colors.white.withOpacity(.14),
+                              valueColor: const AlwaysStoppedAnimation(accent),
+                            ),
+                          ),
+                          const SizedBox(height: 9),
+                          Text(
+                            '${(score * 100).round()}% match  •  ${(confidence * 100).round()}% confidence',
+                            style: TextStyle(
+                              color: Colors.white.withOpacity(.78),
+                              fontSize: 13,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+
+                  // Bottom controls
+                  Positioned(
+                    left: 14,
+                    right: 14,
+                    bottom: 16,
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceAround,
+                      children: [
+                        _cameraAction(
+                          icon: Icons.accessibility_new_rounded,
+                          label: 'POSE',
+                          onTap: skip,
+                        ),
+                        _cameraAction(
+                          icon: Icons.light_mode_outlined,
+                          label: 'LIGHT',
+                          onTap: () {},
+                        ),
+                        GestureDetector(
+                          onTap: shooting ? null : shoot,
+                          child: Container(
+                            width: 74,
+                            height: 74,
                             decoration: BoxDecoration(
-                                color: const Color(0xE0151518),
-                                borderRadius: BorderRadius.circular(20)),
-                            child: Column(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  Text(
-                                      session.state == ShootState.complete
-                                          ? 'Finished'
-                                          : session.target.name,
-                                      style: const TextStyle(
-                                          color: Color(0xFFB8A7FF),
-                                          fontWeight: FontWeight.bold)),
-                                  const SizedBox(height: 8),
-                                  Text(error ?? guidance,
-                                      textAlign: TextAlign.center),
-                                  const SizedBox(height: 8),
-                                  LinearProgressIndicator(
-                                      value: score.clamp(0, 1)),
-                                  Text(
-                                      '${(score * 100).round()}% • confidence ${(confidence * 100).round()}%'),
-                                ]))),
-                    Positioned(
-                        bottom: 18,
-                        left: 14,
-                        right: 14,
-                        child: Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceAround,
-                            children: [
-                              TextButton(
-                                  onPressed: () => setState(() => auto = !auto),
-                                  child: Text(auto ? 'AUTO' : 'MANUAL')),
-                              IconButton(
-                                  onPressed: shoot,
-                                  icon: const Icon(Icons.camera, size: 58),
-                                  tooltip: 'Take photo'),
-                              TextButton(
-                                  onPressed:
-                                      session.state == ShootState.complete
-                                          ? null
-                                          : skip,
-                                  child: const Text('SKIP')),
-                              IconButton(
-                                  onPressed: () => Navigator.push(
-                                      context,
-                                      MaterialPageRoute(
-                                          builder: (_) => Gallery(
-                                              paths: List.of(captures)))),
-                                  icon:
-                                      const Icon(Icons.photo_library_outlined),
-                                  tooltip: 'Session gallery'),
-                            ]))
-                  ])));
+                              shape: BoxShape.circle,
+                              border: Border.all(
+                                color: Colors.white,
+                                width: 3,
+                              ),
+                            ),
+                            padding: const EdgeInsets.all(5),
+                            child: Container(
+                              decoration: const BoxDecoration(
+                                shape: BoxShape.circle,
+                                color: Colors.white,
+                              ),
+                              child: shooting
+                                  ? const Padding(
+                                      padding: EdgeInsets.all(18),
+                                      child: CircularProgressIndicator(
+                                        strokeWidth: 2,
+                                        color: Color(0xFF0B0B0D),
+                                      ),
+                                    )
+                                  : const Icon(
+                                      Icons.camera_alt_rounded,
+                                      color: Color(0xFF0B0B0D),
+                                      size: 30,
+                                    ),
+                            ),
+                          ),
+                        ),
+                        _cameraAction(
+                          icon: auto
+                              ? Icons.auto_awesome
+                              : Icons.auto_awesome_outlined,
+                          label: 'AI',
+                          active: auto,
+                          onTap: () => setState(() => auto = !auto),
+                        ),
+                        _cameraAction(
+                          icon: Icons.photo_library_outlined,
+                          label: 'SHOTS',
+                          onTap: () => Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => Gallery(
+                                paths: List.of(captures),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+      ),
+    );
+  }
+
+  Widget _cameraAction({
+    required IconData icon,
+    required String label,
+    required VoidCallback onTap,
+    bool active = false,
+  }) {
+    const accent = Color(0xFFB8A7FF);
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(18),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 6),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              icon,
+              color: active ? accent : Colors.white,
+              size: 25,
+            ),
+            const SizedBox(height: 5),
+            Text(
+              label,
+              style: TextStyle(
+                color: active ? accent : Colors.white,
+                fontSize: 10,
+                fontWeight: FontWeight.w700,
+                letterSpacing: .6,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 }
 
