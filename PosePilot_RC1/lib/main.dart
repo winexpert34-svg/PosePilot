@@ -296,8 +296,13 @@ class _CameraScreenState extends State<CameraScreen> {
           qualityPenalty *= 0.75;
         }
 
-        final quality =
-            (baseQuality * qualityPenalty).clamp(0.0, 1.0);
+        // Human-first AI Picks v3.
+// No reliably detected person = never an AI Pick.
+// Photo remains available in ALL.
+final humanPenalty = trackingQuality < 0.30 ? 0.0 : 1.0;
+
+final quality =
+    (baseQuality * qualityPenalty * humanPenalty).clamp(0.0, 1.0);
 
       captures.add(photo.path);
       shotQuality[photo.path] = quality;
