@@ -62,7 +62,7 @@ class _CameraScreenState extends State<CameraScreen> {
       await c.initialize();
       camera = c;
       if (mounted) setState(() {});
-      // CRASHFIX: ML stream disabled during startup
+      await c.startImageStream(analyze);
     } catch (e) {
       if (mounted) setState(() => error = '$e');
     }
