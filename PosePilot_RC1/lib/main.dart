@@ -250,10 +250,15 @@ class _CameraScreenState extends State<CameraScreen> {
         guidance = stable ? 'Perfect ✨' : result.guidance;
         error = null;
       });
-      if (stable && auto) {
-        gate.reset();
-        await shoot();
-      }
+      if (stable && auto && !shooting) {
+          gate.reset();
+          if (mounted) {
+            setState(() => guidance = 'Perfect ✨ Hold still…');
+          }
+          await Future.delayed(const Duration(milliseconds: 450));
+          if (!mounted || shooting) return;
+          await shoot();
+        }
     } catch (e) {
       if (mounted) setState(() => error = 'Pose detection error: $e');
     } finally {
