@@ -163,6 +163,44 @@ class _CameraScreenState extends State<CameraScreen> {
     if (now - lastFrame < 100) return;
     lastFrame = now;
     processing = true;
+
+    // PosePilot Light Engine — local realtime luminance analysis.
+    // Uses the camera Y plane only; no cloud and no extra dependencies.
+    if (image.planes.isNotEmpty) {
+      final bytes = image.planes.first.bytes;
+      if (bytes.isNotEmpty) {
+        const sampleCount = 1200;
+        final step =
+            bytes.length > sampleCount ? bytes.length ~/ sampleCount : 1;
+
+        int total = 0;
+        int count = 0;
+
+        for (int i = 0; i < bytes.length; i += step) {
+          total += bytes[i];
+          count++;
+        }
+
+        if (count > 0) {
+          final value = total / count / 255.0;
+          lightLevel =
+              lightLevel == 0 ? value : (lightLevel * 0.82) + (value * 0.18);
+
+          if (lightLevel < 0.22) {
+            lightAdvice = 'Move toward a light source';
+          } else if (lightLevel < 0.38) {
+            lightAdvice = 'A little more light would help';
+          } else if (lightLevel > 0.86) {
+            lightAdvice = 'Light is too strong — move away slightly';
+          } else if (lightLevel > 0.72) {
+            lightAdvice = 'Bright light — turn slightly';
+          } else {
+            lightAdvice = 'Light looks good ✨';
+          }
+        }
+      }
+    }
+
     try {
       final input = inputFrom(image);
       if (input == null) {
