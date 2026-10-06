@@ -1,3 +1,4 @@
+import 'models/pose.dart';
 import 'dart:io';
 import 'package:camera/camera.dart';
 import 'package:flutter/material.dart';
