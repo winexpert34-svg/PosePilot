@@ -111,6 +111,7 @@ class _CameraScreenState extends State<CameraScreen> {
   String? error;
   int lastFrame = 0;
   final List<String> captures = [];
+  final Map<String, double> shotQuality = {};
   @override
   void initState() {
     super.initState();
@@ -267,7 +268,21 @@ class _CameraScreenState extends State<CameraScreen> {
     try {
       if (c.value.isStreamingImages) await c.stopImageStream();
       final photo = await c.takePicture();
+
+      // PosePilot ShotQuality v1
+      final poseQuality = score.clamp(0.0, 1.0);
+      final trackingQuality = confidence.clamp(0.0, 1.0);
+      final exposureQuality =
+          (1.0 - ((lightLevel - 0.55).abs() / 0.55)).clamp(0.0, 1.0);
+
+      final quality = (
+        poseQuality * 0.50 +
+        trackingQuality * 0.25 +
+        exposureQuality * 0.25
+      ).clamp(0.0, 1.0);
+
       captures.add(photo.path);
+      shotQuality[photo.path] = quality;
       session.acceptShot(photo.path);
       if (mounted)
         setState(() {
@@ -734,7 +749,13 @@ class PoseLibraryScreen extends StatelessWidget {
 
 class Gallery extends StatefulWidget {
   final List<String> paths;
-  const Gallery({super.key, required this.paths});
+  final Map<String, double> quality;
+
+  const Gallery({
+    super.key,
+    required this.paths,
+    required this.quality,
+  });
 
   @override
   State<Gallery> createState() => _GalleryState();
@@ -746,14 +767,14 @@ class _GalleryState extends State<Gallery> {
 
   List<String> get visible {
     if (tab == 0) {
-      // MVP AI Picks: select a varied subset from this session.
-      if (widget.paths.length <= 3) return widget.paths;
-      final step = (widget.paths.length / 3).floor().clamp(1, 99);
-      return [
-        widget.paths.first,
-        widget.paths[step],
-        widget.paths.last,
-      ].toSet().toList();
+      // Rank photos by PosePilot ShotQuality.
+      final ranked = List<String>.of(widget.paths)
+        ..sort(
+          (a, b) => (widget.quality[b] ?? 0.0)
+              .compareTo(widget.quality[a] ?? 0.0),
+        );
+
+      return ranked.take(ranked.length < 3 ? ranked.length : 3).toList();
     }
     if (tab == 2) {
       return widget.paths.where(favorites.contains).toList();
