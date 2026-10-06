@@ -96,6 +96,9 @@ class CameraScreen extends StatefulWidget {
 }
 
 class _CameraScreenState extends State<CameraScreen> {
+  double lightLevel = 0.0;
+  String lightAdvice = 'Analyzing your light';
+
   CameraController? camera;
   final detector = PoseDetector(
       options: PoseDetectorOptions(mode: PoseDetectionMode.stream));
