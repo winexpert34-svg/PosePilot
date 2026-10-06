@@ -273,6 +273,8 @@ class _CameraScreenState extends State<CameraScreen> {
     shooting = true;
     try {
       if (c.value.isStreamingImages) await c.stopImageStream();
+      final personVisibleAtCapture = confidence >= 0.55 && score > 0.0;
+
       final photo = await c.takePicture();
 
       // Save every captured PosePilot photo to the phone gallery.
@@ -313,7 +315,7 @@ class _CameraScreenState extends State<CameraScreen> {
       // AI Picks v4: require a reliably visible person.
         // Weak/partial tracking must never become an AI Pick.
         final humanPenalty =
-            trackingQuality < 0.55 ? 0.0 : 1.0;
+          personVisibleAtCapture && trackingQuality >= 0.55 ? 1.0 : 0.0;
 
       final quality =
           (baseQuality * qualityPenalty * humanPenalty).clamp(0.0, 1.0);
