@@ -239,8 +239,7 @@ class _CameraScreenState extends State<CameraScreen> {
               : session.target.cue;
         });
       gate.reset();
-      if (session.state != ShootState.complete && c.value.isInitialized)
-        // ML pose stream temporarily disabled for stable Android camera startup.
+      // ML pose stream temporarily disabled for stable Android camera startup.
     } catch (e) {
       if (mounted) setState(() => error = 'Capture error: $e');
       if (c.value.isInitialized && !c.value.isStreamingImages) {
