@@ -21,6 +21,12 @@ class SessionEngine {
 
   PoseTarget get target => poseLibrary[current % poseLibrary.length];
 
+  void selectPose(int index) {
+    if (index < 0 || index >= poseLibrary.length) return;
+    current = index;
+    state = ShootState.guiding;
+  }
+
   void acceptShot(String path) {
     shots.add(path);
     current++;

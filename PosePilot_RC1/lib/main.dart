@@ -429,7 +429,26 @@ class _CameraScreenState extends State<CameraScreen> {
                         _cameraAction(
                           icon: Icons.accessibility_new_rounded,
                           label: 'POSE',
-                          onTap: skip,
+                          onTap: () async {
+                            final selected = await Navigator.push<int>(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => PoseLibraryScreen(
+                                  selectedIndex: session.current,
+                                ),
+                              ),
+                            );
+                            if (selected != null && mounted) {
+                              gate.reset();
+                              session.selectPose(selected);
+                              setState(() {
+                                score = 0;
+                                confidence = 0;
+                                guidance = session.target.cue;
+                                error = null;
+                              });
+                            }
+                          },
                         ),
                         _cameraAction(
                           icon: Icons.light_mode_outlined,
@@ -531,6 +550,132 @@ class _CameraScreenState extends State<CameraScreen> {
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+class PoseLibraryScreen extends StatelessWidget {
+  final int selectedIndex;
+
+  const PoseLibraryScreen({
+    super.key,
+    required this.selectedIndex,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    const accent = Color(0xFFB8A7FF);
+
+    return Scaffold(
+      backgroundColor: const Color(0xFF0B0B0D),
+      appBar: AppBar(
+        backgroundColor: const Color(0xFF0B0B0D),
+        foregroundColor: Colors.white,
+        elevation: 0,
+        title: const Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'POSE LIBRARY',
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.w700,
+                letterSpacing: 2,
+              ),
+            ),
+            Text(
+              '30 AI-guided poses',
+              style: TextStyle(
+                fontSize: 12,
+                color: Color(0xFF9B9BA1),
+              ),
+            ),
+          ],
+        ),
+      ),
+      body: ListView.separated(
+        padding: const EdgeInsets.fromLTRB(16, 12, 16, 32),
+        itemCount: poseLibrary.length,
+        separatorBuilder: (_, __) => const SizedBox(height: 10),
+        itemBuilder: (context, index) {
+          final pose = poseLibrary[index];
+          final selected = index == selectedIndex;
+
+          return Material(
+            color: selected ? accent.withOpacity(.14) : const Color(0xFF151518),
+            borderRadius: BorderRadius.circular(20),
+            child: InkWell(
+              borderRadius: BorderRadius.circular(20),
+              onTap: () => Navigator.pop(context, index),
+              child: Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(
+                    color: selected
+                        ? accent.withOpacity(.65)
+                        : Colors.white.withOpacity(.07),
+                  ),
+                ),
+                child: Row(
+                  children: [
+                    Container(
+                      width: 46,
+                      height: 46,
+                      decoration: BoxDecoration(
+                        color: accent.withOpacity(.12),
+                        borderRadius: BorderRadius.circular(15),
+                      ),
+                      child: Center(
+                        child: Text(
+                          '${index + 1}',
+                          style: const TextStyle(
+                            color: accent,
+                            fontSize: 16,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 14),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            pose.name,
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 16,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                          const SizedBox(height: 5),
+                          Text(
+                            pose.cue,
+                            style: const TextStyle(
+                              color: Color(0xFF9B9BA1),
+                              fontSize: 13,
+                              height: 1.3,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Icon(
+                      selected
+                          ? Icons.check_circle
+                          : Icons.chevron_right_rounded,
+                      color: selected ? accent : const Color(0xFF9B9BA1),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          );
+        },
       ),
     );
   }
