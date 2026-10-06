@@ -275,11 +275,29 @@ class _CameraScreenState extends State<CameraScreen> {
       final exposureQuality =
           (1.0 - ((lightLevel - 0.55).abs() / 0.55)).clamp(0.0, 1.0);
 
-      final quality = (
-        poseQuality * 0.50 +
-        trackingQuality * 0.25 +
-        exposureQuality * 0.25
-      ).clamp(0.0, 1.0);
+      final baseQuality = (
+          poseQuality * 0.50 +
+          trackingQuality * 0.25 +
+          exposureQuality * 0.25
+        ).clamp(0.0, 1.0);
+
+        // ShotQuality v2: suppress unusable frames before AI Picks ranking.
+        double qualityPenalty = 1.0;
+
+        if (trackingQuality < 0.30) {
+          qualityPenalty *= 0.35;
+        } else if (trackingQuality < 0.50) {
+          qualityPenalty *= 0.70;
+        }
+
+        if (exposureQuality < 0.25) {
+          qualityPenalty *= 0.40;
+        } else if (exposureQuality < 0.45) {
+          qualityPenalty *= 0.75;
+        }
+
+        final quality =
+            (baseQuality * qualityPenalty).clamp(0.0, 1.0);
 
       captures.add(photo.path);
       shotQuality[photo.path] = quality;
