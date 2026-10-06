@@ -3,7 +3,7 @@ name: Build PosePilot Android
 on:
   workflow_dispatch:
   push:
-    branches: [ main ]
+    branches: [ main, ai-photographer-2 ]
 
 jobs:
   build:
