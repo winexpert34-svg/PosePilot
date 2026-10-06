@@ -732,19 +732,176 @@ class PoseLibraryScreen extends StatelessWidget {
   }
 }
 
-class Gallery extends StatelessWidget {
+class Gallery extends StatefulWidget {
   final List<String> paths;
   const Gallery({super.key, required this.paths});
+
   @override
-  Widget build(BuildContext context) => Scaffold(
-      appBar: AppBar(title: Text('Session gallery (${paths.length})')),
-      body: paths.isEmpty
-          ? const Center(child: Text('Your captured photos will appear here'))
-          : GridView.builder(
-              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                  crossAxisCount: 2),
-              itemCount: paths.length,
-              itemBuilder: (_, i) => Padding(
-                  padding: const EdgeInsets.all(3),
-                  child: Image.file(File(paths[i]), fit: BoxFit.cover))));
+  State<Gallery> createState() => _GalleryState();
+}
+
+class _GalleryState extends State<Gallery> {
+  int tab = 0;
+  final Set<String> favorites = {};
+
+  List<String> get visible {
+    if (tab == 0) {
+      // MVP AI Picks: select a varied subset from this session.
+      if (widget.paths.length <= 3) return widget.paths;
+      final step = (widget.paths.length / 3).floor().clamp(1, 99);
+      return [
+        widget.paths.first,
+        widget.paths[step],
+        widget.paths.last,
+      ].toSet().toList();
+    }
+    if (tab == 2) {
+      return widget.paths.where(favorites.contains).toList();
+    }
+    return widget.paths;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final photos = visible;
+
+    return Scaffold(
+      backgroundColor: const Color(0xFF0B0B0D),
+      appBar: AppBar(
+        backgroundColor: const Color(0xFF0B0B0D),
+        foregroundColor: const Color(0xFFF5F5F2),
+        title: const Text('Session Gallery'),
+      ),
+      body: Column(
+        children: [
+          Padding(
+            padding: const EdgeInsets.all(12),
+            child: Row(
+              children: [
+                _tab('AI PICKS', 0),
+                const SizedBox(width: 8),
+                _tab('ALL', 1),
+                const SizedBox(width: 8),
+                _tab('FAVORITES', 2),
+              ],
+            ),
+          ),
+          Expanded(
+            child: photos.isEmpty
+                ? Center(
+                    child: Text(
+                      tab == 2
+                          ? 'Tap ♡ on a photo to add it here'
+                          : 'Your captured photos will appear here',
+                      style: const TextStyle(color: Color(0xFF9B9BA1)),
+                    ),
+                  )
+                : GridView.builder(
+                    padding: const EdgeInsets.all(8),
+                    gridDelegate:
+                        const SliverGridDelegateWithFixedCrossAxisCount(
+                      crossAxisCount: 2,
+                      crossAxisSpacing: 6,
+                      mainAxisSpacing: 6,
+                    ),
+                    itemCount: photos.length,
+                    itemBuilder: (_, i) {
+                      final path = photos[i];
+                      final fav = favorites.contains(path);
+
+                      return Stack(
+                        fit: StackFit.expand,
+                        children: [
+                          ClipRRect(
+                            borderRadius: BorderRadius.circular(16),
+                            child: Image.file(
+                              File(path),
+                              fit: BoxFit.cover,
+                            ),
+                          ),
+                          Positioned(
+                            top: 8,
+                            right: 8,
+                            child: Material(
+                              color: const Color(0x990B0B0D),
+                              shape: const CircleBorder(),
+                              child: IconButton(
+                                onPressed: () {
+                                  setState(() {
+                                    fav
+                                        ? favorites.remove(path)
+                                        : favorites.add(path);
+                                  });
+                                },
+                                icon: Icon(
+                                  fav ? Icons.favorite : Icons.favorite_border,
+                                  color: fav
+                                      ? const Color(0xFFB8A7FF)
+                                      : const Color(0xFFF5F5F2),
+                                ),
+                              ),
+                            ),
+                          ),
+                          if (tab == 0)
+                            const Positioned(
+                              left: 10,
+                              bottom: 10,
+                              child: DecoratedBox(
+                                decoration: BoxDecoration(
+                                  color: Color(0xCC151518),
+                                  borderRadius:
+                                      BorderRadius.all(Radius.circular(20)),
+                                ),
+                                child: Padding(
+                                  padding: EdgeInsets.symmetric(
+                                    horizontal: 10,
+                                    vertical: 6,
+                                  ),
+                                  child: Text(
+                                    'AI PICK ✨',
+                                    style: TextStyle(
+                                      color: Color(0xFFB8A7FF),
+                                      fontWeight: FontWeight.w700,
+                                      fontSize: 11,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ),
+                        ],
+                      );
+                    },
+                  ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _tab(String label, int index) {
+    final selected = tab == index;
+
+    return Expanded(
+      child: GestureDetector(
+        onTap: () => setState(() => tab = index),
+        child: Container(
+          padding: const EdgeInsets.symmetric(vertical: 11),
+          decoration: BoxDecoration(
+            color: selected ? const Color(0xFFB8A7FF) : const Color(0xFF1D1D21),
+            borderRadius: BorderRadius.circular(24),
+          ),
+          alignment: Alignment.center,
+          child: Text(
+            label,
+            style: TextStyle(
+              color:
+                  selected ? const Color(0xFF0B0B0D) : const Color(0xFFF5F5F2),
+              fontWeight: FontWeight.w700,
+              fontSize: 11,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
 }
