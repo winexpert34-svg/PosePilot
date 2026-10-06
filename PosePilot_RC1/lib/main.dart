@@ -1,3 +1,4 @@
+import 'dart:math';
 import 'package:gal/gal.dart';
 import 'models/pose.dart';
 import 'dart:io';
@@ -305,7 +306,43 @@ final photo = await c.takePicture();
               rightShoulder >= 0.70 &&
               nose >= 0.60;
 
-          personVisibleInPhoto = strongTorso || strongUpperBody;
+          // Human geometry validation: confidence alone is not enough.
+// This rejects false ML Kit poses on furniture, radiators and room objects.
+bool plausibleHumanGeometry = false;
+
+if (capturedPoses.isNotEmpty) {
+  final pose = capturedPoses.first;
+
+  double dist(PoseLandmarkType a, PoseLandmarkType b) {
+    final pa = pose.landmarks[a];
+    final pb = pose.landmarks[b];
+    if (pa == null || pb == null) return 0.0;
+    final dx = pa.x - pb.x;
+    final dy = pa.y - pb.y;
+    return sqrt(dx * dx + dy * dy);
+  }
+
+  final shoulderWidth =
+      dist(PoseLandmarkType.leftShoulder, PoseLandmarkType.rightShoulder);
+  final hipWidth =
+      dist(PoseLandmarkType.leftHip, PoseLandmarkType.rightHip);
+  final torsoLeft =
+      dist(PoseLandmarkType.leftShoulder, PoseLandmarkType.leftHip);
+  final torsoRight =
+      dist(PoseLandmarkType.rightShoulder, PoseLandmarkType.rightHip);
+
+  final torsoLength = (torsoLeft + torsoRight) / 2.0;
+
+  plausibleHumanGeometry =
+      shoulderWidth > 12.0 &&
+      hipWidth > 8.0 &&
+      torsoLength > 18.0 &&
+      torsoLength < shoulderWidth * 4.5 &&
+      shoulderWidth < torsoLength * 3.5;
+}
+
+personVisibleInPhoto =
+    (strongTorso || strongUpperBody) && plausibleHumanGeometry;
         }
       } catch (e) {
         debugPrint('PosePilot captured-photo person check failed: $e');
