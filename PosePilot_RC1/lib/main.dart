@@ -273,9 +273,18 @@ class _CameraScreenState extends State<CameraScreen> {
     shooting = true;
     try {
       if (c.value.isStreamingImages) await c.stopImageStream();
-      final personVisibleAtCapture = confidence >= 0.55 && score > 0.0;
+final photo = await c.takePicture();
 
-      final photo = await c.takePicture();
+      // Verify the actual captured JPEG before AI Picks.
+      // Streaming state can be stale after the person leaves the frame.
+      bool personVisibleInPhoto = false;
+      try {
+        final capturedInput = InputImage.fromFilePath(photo.path);
+        final capturedPoses = await detector.processImage(capturedInput);
+        personVisibleInPhoto = capturedPoses.isNotEmpty;
+      } catch (e) {
+        debugPrint('PosePilot captured-photo person check failed: $e');
+      }
 
       // Save every captured PosePilot photo to the phone gallery.
       try {
@@ -315,7 +324,7 @@ class _CameraScreenState extends State<CameraScreen> {
       // AI Picks v4: require a reliably visible person.
         // Weak/partial tracking must never become an AI Pick.
         final humanPenalty =
-          personVisibleAtCapture && trackingQuality >= 0.55 ? 1.0 : 0.0;
+          personVisibleInPhoto && trackingQuality >= 0.55 ? 1.0 : 0.0;
 
       final quality =
           (baseQuality * qualityPenalty * humanPenalty).clamp(0.0, 1.0);
