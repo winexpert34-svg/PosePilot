@@ -281,7 +281,32 @@ final photo = await c.takePicture();
       try {
         final capturedInput = InputImage.fromFilePath(photo.path);
         final capturedPoses = await detector.processImage(capturedInput);
-        personVisibleInPhoto = capturedPoses.isNotEmpty;
+        if (capturedPoses.isNotEmpty) {
+          final capturedPose = capturedPoses.first;
+
+          double lk(PoseLandmarkType type) =>
+              capturedPose.landmarks[type]?.likelihood ?? 0.0;
+
+          // Require a coherent human torso, not merely one false landmark.
+          final leftShoulder = lk(PoseLandmarkType.leftShoulder);
+          final rightShoulder = lk(PoseLandmarkType.rightShoulder);
+          final leftHip = lk(PoseLandmarkType.leftHip);
+          final rightHip = lk(PoseLandmarkType.rightHip);
+          final nose = lk(PoseLandmarkType.nose);
+
+          final strongTorso =
+              leftShoulder >= 0.65 &&
+              rightShoulder >= 0.65 &&
+              leftHip >= 0.60 &&
+              rightHip >= 0.60;
+
+          final strongUpperBody =
+              leftShoulder >= 0.70 &&
+              rightShoulder >= 0.70 &&
+              nose >= 0.60;
+
+          personVisibleInPhoto = strongTorso || strongUpperBody;
+        }
       } catch (e) {
         debugPrint('PosePilot captured-photo person check failed: $e');
       }
