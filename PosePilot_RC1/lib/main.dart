@@ -5,6 +5,7 @@ import 'dart:io';
 import 'package:camera/camera.dart';
 import 'package:flutter/material.dart';
 import 'package:google_mlkit_pose_detection/google_mlkit_pose_detection.dart';
+import 'package:google_mlkit_face_detection/google_mlkit_face_detection.dart';
 import 'package:google_mlkit_object_detection/google_mlkit_object_detection.dart';
 import 'models/pose_frame.dart';
 import 'services/pose_matcher.dart';
@@ -105,6 +106,12 @@ class _CameraScreenState extends State<CameraScreen> {
   CameraController? camera;
   final detector = PoseDetector(
       options: PoseDetectorOptions(mode: PoseDetectionMode.stream));
+  final faceDetector = FaceDetector(
+    options: FaceDetectorOptions(
+      performanceMode: FaceDetectorMode.fast,
+      enableTracking: false,
+    ),
+  );
   final objectDetector = ObjectDetector(
     options: ObjectDetectorOptions(
       mode: DetectionMode.stream,
@@ -310,72 +317,22 @@ class _CameraScreenState extends State<CameraScreen> {
       if (c.value.isStreamingImages) await c.stopImageStream();
       final photo = await c.takePicture();
 
-      // Verify the actual captured JPEG before AI Picks.
-      // Streaming state can be stale after the person leaves the frame.
+      // AI Picks Human Gate.
+      // The SAVED JPEG is checked by an independent face detector.
+      // Pose Detection is deliberately NOT used to prove a human exists.
       bool personVisibleInPhoto = false;
       try {
         final capturedInput = InputImage.fromFilePath(photo.path);
-        final capturedPoses = await detector.processImage(capturedInput);
-        if (capturedPoses.isNotEmpty) {
-          final capturedPose = capturedPoses.first;
-
-          double lk(PoseLandmarkType type) =>
-              capturedPose.landmarks[type]?.likelihood ?? 0.0;
-
-          // Require a coherent human torso, not merely one false landmark.
-          final leftShoulder = lk(PoseLandmarkType.leftShoulder);
-          final rightShoulder = lk(PoseLandmarkType.rightShoulder);
-          final leftHip = lk(PoseLandmarkType.leftHip);
-          final rightHip = lk(PoseLandmarkType.rightHip);
-          final nose = lk(PoseLandmarkType.nose);
-
-          final strongTorso = leftShoulder >= 0.65 &&
-              rightShoulder >= 0.65 &&
-              leftHip >= 0.60 &&
-              rightHip >= 0.60;
-
-          final strongUpperBody =
-              leftShoulder >= 0.70 && rightShoulder >= 0.70 && nose >= 0.60;
-
-          // Human geometry validation: confidence alone is not enough.
-// This rejects false ML Kit poses on furniture, radiators and room objects.
-          bool plausibleHumanGeometry = false;
-
-          if (capturedPoses.isNotEmpty) {
-            final pose = capturedPoses.first;
-
-            double dist(PoseLandmarkType a, PoseLandmarkType b) {
-              final pa = pose.landmarks[a];
-              final pb = pose.landmarks[b];
-              if (pa == null || pb == null) return 0.0;
-              final dx = pa.x - pb.x;
-              final dy = pa.y - pb.y;
-              return sqrt(dx * dx + dy * dy);
-            }
-
-            final shoulderWidth = dist(
-                PoseLandmarkType.leftShoulder, PoseLandmarkType.rightShoulder);
-            final hipWidth =
-                dist(PoseLandmarkType.leftHip, PoseLandmarkType.rightHip);
-            final torsoLeft =
-                dist(PoseLandmarkType.leftShoulder, PoseLandmarkType.leftHip);
-            final torsoRight =
-                dist(PoseLandmarkType.rightShoulder, PoseLandmarkType.rightHip);
-
-            final torsoLength = (torsoLeft + torsoRight) / 2.0;
-
-            plausibleHumanGeometry = shoulderWidth > 12.0 &&
-                hipWidth > 8.0 &&
-                torsoLength > 18.0 &&
-                torsoLength < shoulderWidth * 4.5 &&
-                shoulderWidth < torsoLength * 3.5;
-          }
-
-          personVisibleInPhoto =
-              (strongTorso || strongUpperBody) && plausibleHumanGeometry;
-        }
+        final faces = await faceDetector.processImage(capturedInput);
+        personVisibleInPhoto = faces.isNotEmpty;
+        debugPrint(
+          'PosePilot Human Gate: faces=${faces.length}, '
+          'eligible=$personVisibleInPhoto',
+        );
       } catch (e) {
-        debugPrint('PosePilot captured-photo person check failed: $e');
+        // Fail closed: detector failure must never create an AI Pick.
+        personVisibleInPhoto = false;
+        debugPrint('PosePilot Human Gate failed: $e');
       }
 
       // Save every captured PosePilot photo to the phone gallery.
@@ -471,6 +428,8 @@ class _CameraScreenState extends State<CameraScreen> {
   void dispose() {
     camera?.dispose();
     detector.close();
+    faceDetector.close();
+    objectDetector.close();
     super.dispose();
   }
 
@@ -919,7 +878,11 @@ class _GalleryState extends State<Gallery> {
   List<String> get visible {
     if (tab == 0) {
       // Rank photos by PosePilot ShotQuality.
-      final ranked = List<String>.of(widget.paths)
+      // AI PICKS contains only photos that passed Human Gate + quality.
+      // Rejected photos remain available in ALL.
+      final ranked = widget.paths
+          .where((path) => (widget.quality[path] ?? 0.0) >= 0.42)
+          .toList()
         ..sort(
           (a, b) =>
               (widget.quality[b] ?? 0.0).compareTo(widget.quality[a] ?? 0.0),
