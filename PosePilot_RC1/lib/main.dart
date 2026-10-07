@@ -410,27 +410,20 @@ class _CameraScreenState extends State<CameraScreen> {
         qualityPenalty *= 0.75;
       }
 
-      // Human-first AI Picks v3.
-// No reliably detected person = never an AI Pick.
-// Photo remains available in ALL.
-      // AI Picks v4: require a reliably visible person.
-      // Weak/partial tracking must never become an AI Pick.
-      final humanPenalty =
-          personVisibleInPhoto && trackingQuality >= 0.55 ? 1.0 : 0.0;
-      // AI Picks v5: trust captured JPEG human verification.
-      // Live camera tracking may be stale after takePicture().
-      // Human Gate v2: AI Pick requires a coherent upper human body.
-// This rejects common ML Kit false positives on furniture/objects.
-      final capturedHumanGate = personVisibleInPhoto;
-
-      final eligibleForAiPick = personVisibleInPhoto && capturedHumanGate;
+      // Human-first AI Picks v6.
+      // Only the captured JPEG decides whether a person exists.
+      // This prevents stale live-camera tracking and false AI Picks.
+      final humanPenalty = personVisibleInPhoto ? 1.0 : 0.0;
+      final eligibleForAiPick = personVisibleInPhoto;
 
       final quality =
           (baseQuality * qualityPenalty * humanPenalty).clamp(0.0, 1.0);
 
       captures.add(photo.path);
       shotQuality[photo.path] = quality;
-      // AI Photographer 2.0 — review before advancing.
+
+      // AI Photographer: keep every photo in ALL,
+      // but only real detected people may enter AI PICKS.
       final acceptShot =
           trackingQuality >= 0.45 && exposureQuality >= 0.35 && quality >= 0.42;
 
