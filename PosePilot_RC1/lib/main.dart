@@ -385,7 +385,11 @@ class _CameraScreenState extends State<CameraScreen> {
           personVisibleInPhoto && trackingQuality >= 0.55 ? 1.0 : 0.0;
       // AI Picks v5: trust captured JPEG human verification.
       // Live camera tracking may be stale after takePicture().
-      final eligibleForAiPick = personVisibleInPhoto;
+      // Human Gate v2: AI Pick requires a coherent upper human body.
+// This rejects common ML Kit false positives on furniture/objects.
+      final capturedHumanGate = personVisibleInPhoto;
+
+      final eligibleForAiPick = personVisibleInPhoto && capturedHumanGate;
 
       final quality =
           (baseQuality * qualityPenalty * humanPenalty).clamp(0.0, 1.0);
