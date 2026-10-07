@@ -5,6 +5,7 @@ import 'dart:io';
 import 'package:camera/camera.dart';
 import 'package:flutter/material.dart';
 import 'package:google_mlkit_pose_detection/google_mlkit_pose_detection.dart';
+import 'package:google_mlkit_object_detection/google_mlkit_object_detection.dart';
 import 'models/pose_frame.dart';
 import 'services/pose_matcher.dart';
 import 'services/stability_gate.dart';
@@ -104,6 +105,14 @@ class _CameraScreenState extends State<CameraScreen> {
   CameraController? camera;
   final detector = PoseDetector(
       options: PoseDetectorOptions(mode: PoseDetectionMode.stream));
+  final objectDetector = ObjectDetector(
+    options: ObjectDetectorOptions(
+      mode: DetectionMode.stream,
+      classifyObjects: true,
+      multipleObjects: true,
+    ),
+  );
+
   final matcher = PoseMatcher();
   final gate = StabilityGate(requiredMs: 350);
   final session = SessionEngine(total: 10);
@@ -112,6 +121,11 @@ class _CameraScreenState extends State<CameraScreen> {
   double score = 0, confidence = 0;
   String? error;
   int lastFrame = 0;
+
+  // PosePilot Scene AI
+  int lastSceneAnalysis = 0;
+  String sceneAdvice = 'Analyzing scene...';
+  int sceneObjectCount = 0;
   final List<String> captures = [];
   final Map<String, double> shotQuality = {};
   @override
@@ -214,6 +228,26 @@ class _CameraScreenState extends State<CameraScreen> {
           setState(() => error = 'Unsupported image format on this device');
         return;
       }
+      // Scene AI — throttled object detection.
+      if (now - lastSceneAnalysis >= 1000) {
+        lastSceneAnalysis = now;
+        try {
+          final objects = await objectDetector.processImage(input);
+          if (mounted) {
+            setState(() {
+              sceneObjectCount = objects.length;
+              sceneAdvice = objects.isEmpty
+                  ? 'Open scene'
+                  : objects.length == 1
+                      ? '1 object detected'
+                      : '${objects.length} objects detected';
+            });
+          }
+        } catch (e) {
+          debugPrint('PosePilot Scene AI: $e');
+        }
+      }
+
       final poses = await detector.processImage(input);
       if (!mounted) return;
       if (poses.isEmpty) {
