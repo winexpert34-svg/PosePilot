@@ -1,5 +1,7 @@
 import 'dart:ui' show ImageByteFormat, instantiateImageCodec;
 import 'package:gal/gal.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'models/pose.dart';
 import 'dart:io';
 import 'package:camera/camera.dart';
@@ -135,9 +137,61 @@ class _CameraScreenState extends State<CameraScreen> {
   int sceneObjectCount = 0;
   final List<String> captures = [];
   final Map<String, double> shotQuality = {};
+
+  Future<void> _restorePhotos() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final savedPaths = prefs.getStringList('posepilot_photo_paths') ?? [];
+      final savedScores = prefs.getStringList('posepilot_photo_scores') ?? [];
+      final validPaths = <String>[];
+      final validScores = <String>[];
+
+      for (var i = 0; i < savedPaths.length; i++) {
+        final path = savedPaths[i];
+        if (await File(path).exists()) {
+          validPaths.add(path);
+          final quality = i < savedScores.length
+              ? double.tryParse(savedScores[i]) ?? 0.0
+              : 0.0;
+          validScores.add(quality.toString());
+        }
+      }
+
+      if (!mounted) return;
+      setState(() {
+        captures
+          ..clear()
+          ..addAll(validPaths);
+        shotQuality.clear();
+        for (var i = 0; i < validPaths.length; i++) {
+          shotQuality[validPaths[i]] = double.parse(validScores[i]);
+        }
+      });
+      await prefs.setStringList('posepilot_photo_paths', validPaths);
+      await prefs.setStringList('posepilot_photo_scores', validScores);
+      debugPrint('PosePilot restored ${validPaths.length} photos');
+    } catch (e) {
+      debugPrint('PosePilot photo restore failed: $e');
+    }
+  }
+
+  Future<void> _savePhotoHistory() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setStringList('posepilot_photo_paths', captures);
+      await prefs.setStringList(
+        'posepilot_photo_scores',
+        captures.map((p) => (shotQuality[p] ?? 0.0).toString()).toList(),
+      );
+    } catch (e) {
+      debugPrint('PosePilot photo history save failed: $e');
+    }
+  }
+
   @override
   void initState() {
     super.initState();
+    _restorePhotos();
     initCamera();
   }
 
@@ -497,8 +551,18 @@ class _CameraScreenState extends State<CameraScreen> {
               sharpnessScore)
           .clamp(0.0, 1.0);
 
-      captures.add(photo.path);
-      shotQuality[photo.path] = quality;
+      // Keep a permanent app-owned copy: camera cache is temporary.
+      final photoDirectory = Directory(
+        '${(await getApplicationDocumentsDirectory()).path}/photos',
+      );
+      await photoDirectory.create(recursive: true);
+      final permanentPath =
+          '${photoDirectory.path}/${DateTime.now().microsecondsSinceEpoch}.jpg';
+      await File(photo.path).copy(permanentPath);
+
+      captures.add(permanentPath);
+      shotQuality[permanentPath] = quality;
+      await _savePhotoHistory();
 
       // AI Photographer: keep every photo in ALL,
       // but only real detected people may enter AI PICKS.
