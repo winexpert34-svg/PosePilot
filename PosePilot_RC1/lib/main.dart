@@ -321,10 +321,25 @@ class _CameraScreenState extends State<CameraScreen> {
       // The SAVED JPEG is checked by an independent face detector.
       // Pose Detection is deliberately NOT used to prove a human exists.
       bool personVisibleInPhoto = false;
+      double compositionScore = 1.0;
       try {
         final capturedInput = InputImage.fromFilePath(photo.path);
         final faces = await faceDetector.processImage(capturedInput);
         personVisibleInPhoto = faces.isNotEmpty;
+
+        // AI Picks 2.0: composition affects ranking, not Human Gate.
+        if (faces.isNotEmpty) {
+          final largestFace = faces.reduce((a, b) =>
+              a.boundingBox.width * a.boundingBox.height >=
+                      b.boundingBox.width * b.boundingBox.height
+                  ? a
+                  : b);
+          final box = largestFace.boundingBox;
+          final faceArea = box.width * box.height;
+          // Prefer a clearly visible face over a tiny distant face.
+          // This is a mild ranking bonus, never a rejection condition.
+          compositionScore = faceArea > 0 ? 1.0 : 0.95;
+        }
         debugPrint(
           'PosePilot Human Gate: faces=${faces.length}, '
           'eligible=$personVisibleInPhoto',
@@ -374,7 +389,8 @@ class _CameraScreenState extends State<CameraScreen> {
       final eligibleForAiPick = personVisibleInPhoto;
 
       final quality =
-          (baseQuality * qualityPenalty * humanPenalty).clamp(0.0, 1.0);
+          (baseQuality * qualityPenalty * humanPenalty * compositionScore)
+              .clamp(0.0, 1.0);
 
       captures.add(photo.path);
       shotQuality[photo.path] = quality;
