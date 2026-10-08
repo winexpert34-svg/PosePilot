@@ -1,4 +1,3 @@
-import 'dart:math';
 import 'dart:ui' show ImageByteFormat, instantiateImageCodec;
 import 'package:gal/gal.dart';
 import 'models/pose.dart';
@@ -323,6 +322,10 @@ class _CameraScreenState extends State<CameraScreen> {
       // Pose Detection is deliberately NOT used to prove a human exists.
       bool personVisibleInPhoto = false;
       double compositionScore = 1.0;
+      Rect? faceBounds;
+      double originalImageWidth = 0;
+      double originalImageHeight = 0;
+
       try {
         final capturedInput = InputImage.fromFilePath(photo.path);
         final faces = await faceDetector.processImage(capturedInput);
@@ -336,6 +339,8 @@ class _CameraScreenState extends State<CameraScreen> {
                   ? a
                   : b);
           final box = largestFace.boundingBox;
+          faceBounds = box;
+
           final faceArea = box.width * box.height;
           // Prefer a clearly visible face over a tiny distant face.
           // This is a mild ranking bonus, never a rejection condition.
@@ -344,6 +349,9 @@ class _CameraScreenState extends State<CameraScreen> {
           final decoded = await decodeImageFromList(jpegBytes);
           final imageWidth = decoded.width.toDouble();
           final imageHeight = decoded.height.toDouble();
+          originalImageWidth = imageWidth;
+          originalImageHeight = imageHeight;
+
           decoded.dispose();
 
           if (imageWidth > 0 && imageHeight > 0 && faceArea > 0) {
@@ -376,57 +384,72 @@ class _CameraScreenState extends State<CameraScreen> {
         debugPrint('PosePilot Human Gate failed: $e');
       }
 
-      // AI Picks 2.0: estimate sharpness on the captured JPEG.
-      // Sharpness changes ranking only, never human eligibility.
+      // AI Picks 2.0: evaluate facial sharpness on the saved JPEG.
+      // Human Gate and eligibility remain unchanged.
       double sharpnessScore = 1.0;
       try {
         final bytes = await File(photo.path).readAsBytes();
         final codec = await instantiateImageCodec(
           bytes,
-          targetWidth: 160,
+          targetWidth: 480,
         );
         final frame = await codec.getNextFrame();
         final image = frame.image;
         final data = await image.toByteData(
           format: ImageByteFormat.rawRgba,
         );
-        if (data != null) {
+
+        if (data != null && faceBounds != null) {
           final pixels = data.buffer.asUint8List();
           final width = image.width;
           final height = image.height;
-          double differences = 0;
+
+          final scaleX = width / originalImageWidth;
+          final scaleY = height / originalImageHeight;
+
+          final left = (faceBounds.left * scaleX).round().clamp(1, width - 2);
+          final top = (faceBounds.top * scaleY).round().clamp(1, height - 2);
+          final right = (faceBounds.right * scaleX).round().clamp(1, width - 2);
+          final bottom =
+              (faceBounds.bottom * scaleY).round().clamp(1, height - 2);
+
+          double energy = 0;
           int samples = 0;
 
-          for (int y = 1; y < height - 1; y += 2) {
-            for (int x = 1; x < width - 1; x += 2) {
-              final i = (y * width + x) * 4;
-              final right = i + 4;
-              final below = i + width * 4;
-              final brightness =
-                  (pixels[i] + pixels[i + 1] + pixels[i + 2]) / 3.0;
-              final rightBrightness =
-                  (pixels[right] + pixels[right + 1] + pixels[right + 2]) / 3.0;
-              final belowBrightness =
-                  (pixels[below] + pixels[below + 1] + pixels[below + 2]) / 3.0;
-              differences += (brightness - rightBrightness).abs() +
-                  (brightness - belowBrightness).abs();
-              samples += 2;
+          for (int y = top + 1; y < bottom - 1; y += 2) {
+            for (int x = left + 1; x < right - 1; x += 2) {
+              double gray(int px, int py) {
+                final i = (py * width + px) * 4;
+                return pixels[i] * 0.299 +
+                    pixels[i + 1] * 0.587 +
+                    pixels[i + 2] * 0.114;
+              }
+
+              final laplacian = 4 * gray(x, y) -
+                  gray(x - 1, y) -
+                  gray(x + 1, y) -
+                  gray(x, y - 1) -
+                  gray(x, y + 1);
+
+              energy += laplacian * laplacian;
+              samples++;
             }
           }
 
-          if (samples > 0) {
-            final detail = differences / samples;
-            sharpnessScore = (0.80 + 0.20 * (detail / 18.0).clamp(0.0, 1.0))
-                .clamp(0.80, 1.0);
+          if (samples > 20) {
+            final sharpness = energy / samples;
+            sharpnessScore = (0.65 + 0.35 * (sharpness / 350.0).clamp(0.0, 1.0))
+                .clamp(0.65, 1.0);
             debugPrint(
-              'PosePilot Sharpness: detail=$detail, score=$sharpnessScore',
+              'PosePilot Face Sharpness: $sharpness, score=$sharpnessScore',
             );
           }
         }
+
         image.dispose();
         codec.dispose();
       } catch (e) {
-        debugPrint('PosePilot Sharpness analysis failed: $e');
+        debugPrint('PosePilot Face Sharpness failed: $e');
       }
 
       // Save every captured PosePilot photo to the phone gallery.
