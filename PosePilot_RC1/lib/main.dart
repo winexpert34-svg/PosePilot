@@ -338,7 +338,32 @@ class _CameraScreenState extends State<CameraScreen> {
           final faceArea = box.width * box.height;
           // Prefer a clearly visible face over a tiny distant face.
           // This is a mild ranking bonus, never a rejection condition.
-          compositionScore = faceArea > 0 ? 1.0 : 0.95;
+          // Read the captured JPEG dimensions without extra packages.
+          final jpegBytes = await File(photo.path).readAsBytes();
+          final decoded = await decodeImageFromList(jpegBytes);
+          final imageWidth = decoded.width.toDouble();
+          final imageHeight = decoded.height.toDouble();
+          decoded.dispose();
+
+          if (imageWidth > 0 && imageHeight > 0 && faceArea > 0) {
+            final relativeArea = faceArea / (imageWidth * imageHeight);
+            final centerX = box.center.dx / imageWidth;
+            final centerY = box.center.dy / imageHeight;
+
+            // Mild preference for visible, well-framed faces.
+            final sizeScore = (relativeArea / 0.06).clamp(0.0, 1.0);
+            final horizontalScore =
+                (1.0 - (centerX - 0.5).abs()).clamp(0.0, 1.0);
+            final verticalScore =
+                (1.0 - (centerY - 0.42).abs()).clamp(0.0, 1.0);
+
+            compositionScore = (0.80 +
+                    0.20 *
+                        (sizeScore * 0.40 +
+                            horizontalScore * 0.30 +
+                            verticalScore * 0.30))
+                .clamp(0.80, 1.0);
+          }
         }
         debugPrint(
           'PosePilot Human Gate: faces=${faces.length}, '
