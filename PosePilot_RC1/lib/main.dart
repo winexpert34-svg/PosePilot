@@ -682,10 +682,10 @@ class _CameraScreenState extends State<CameraScreen>
                             vertical: 5,
                           ),
                           decoration: BoxDecoration(
-                            color: accent.withOpacity(.18),
+                            color: accent.withValues(alpha: .18),
                             borderRadius: BorderRadius.circular(20),
                             border: Border.all(
-                              color: accent.withOpacity(.55),
+                              color: accent.withValues(alpha: .55),
                             ),
                           ),
                           child: const Row(
@@ -732,7 +732,7 @@ class _CameraScreenState extends State<CameraScreen>
                         color: const Color(0xE61A191F),
                         borderRadius: BorderRadius.circular(24),
                         border: Border.all(
-                          color: Colors.white.withOpacity(.10),
+                          color: Colors.white.withValues(alpha: .10),
                         ),
                         boxShadow: const [
                           BoxShadow(
@@ -772,7 +772,7 @@ class _CameraScreenState extends State<CameraScreen>
                             child: LinearProgressIndicator(
                               minHeight: 5,
                               value: score.clamp(0, 1),
-                              backgroundColor: Colors.white.withOpacity(.14),
+                              backgroundColor: Colors.white.withValues(alpha: .14),
                               valueColor: const AlwaysStoppedAnimation(accent),
                             ),
                           ),
@@ -780,7 +780,7 @@ class _CameraScreenState extends State<CameraScreen>
                           Text(
                             '${(score * 100).round()}% match  •  ${(confidence * 100).round()}% confidence',
                             style: TextStyle(
-                              color: Colors.white.withOpacity(.78),
+                              color: Colors.white.withValues(alpha: .78),
                               fontSize: 13,
                             ),
                           ),
@@ -984,7 +984,7 @@ class PoseLibraryScreen extends StatelessWidget {
           final selected = index == selectedIndex;
 
           return Material(
-            color: selected ? accent.withOpacity(.14) : const Color(0xFF151518),
+            color: selected ? accent.withValues(alpha: .14) : const Color(0xFF151518),
             borderRadius: BorderRadius.circular(20),
             child: InkWell(
               borderRadius: BorderRadius.circular(20),
@@ -995,8 +995,8 @@ class PoseLibraryScreen extends StatelessWidget {
                   borderRadius: BorderRadius.circular(20),
                   border: Border.all(
                     color: selected
-                        ? accent.withOpacity(.65)
-                        : Colors.white.withOpacity(.07),
+                        ? accent.withValues(alpha: .65)
+                        : Colors.white.withValues(alpha: .07),
                   ),
                 ),
                 child: Row(
@@ -1005,7 +1005,7 @@ class PoseLibraryScreen extends StatelessWidget {
                       width: 46,
                       height: 46,
                       decoration: BoxDecoration(
-                        color: accent.withOpacity(.12),
+                        color: accent.withValues(alpha: .12),
                         borderRadius: BorderRadius.circular(15),
                       ),
                       child: Center(
