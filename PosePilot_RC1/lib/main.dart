@@ -995,21 +995,99 @@ class Gallery extends StatefulWidget {
 class _GalleryState extends State<Gallery> {
   int tab = 0;
   final Set<String> favorites = {};
+  final Map<String, List<int>> photoHashes = {};
+  List<String>? cachedPicks;
+
+  @override
+  void initState() {
+    super.initState();
+    _preparePicks();
+  }
+
+  Future<List<int>?> _fingerprint(String path) async {
+    try {
+      final bytes = await File(path).readAsBytes();
+      final codec = await instantiateImageCodec(
+        bytes,
+        targetWidth: 9,
+        targetHeight: 8,
+      );
+      final frame = await codec.getNextFrame();
+      final image = frame.image;
+      final data = await image.toByteData(
+        format: ImageByteFormat.rawRgba,
+      );
+      if (data == null || image.width < 9 || image.height < 8) {
+        image.dispose();
+        codec.dispose();
+        return null;
+      }
+
+      final pixels = data.buffer.asUint8List();
+      final hash = <int>[];
+
+      for (int y = 0; y < 8; y++) {
+        for (int x = 0; x < 8; x++) {
+          double gray(int px) {
+            final i = (y * image.width + px) * 4;
+            return pixels[i] * 0.299 +
+                pixels[i + 1] * 0.587 +
+                pixels[i + 2] * 0.114;
+          }
+
+          hash.add(gray(x) > gray(x + 1) ? 1 : 0);
+        }
+      }
+
+      image.dispose();
+      codec.dispose();
+      return hash;
+    } catch (e) {
+      debugPrint('PosePilot fingerprint failed: $e');
+      return null;
+    }
+  }
+
+  int _distance(List<int> a, List<int> b) {
+    int difference = 0;
+    for (int i = 0; i < 64; i++) {
+      if (a[i] != b[i]) difference++;
+    }
+    return difference;
+  }
+
+  Future<void> _preparePicks() async {
+    final ranked = widget.paths
+        .where((path) => (widget.quality[path] ?? 0.0) >= 0.42)
+        .toList()
+      ..sort((a, b) =>
+          (widget.quality[b] ?? 0.0).compareTo(widget.quality[a] ?? 0.0));
+
+    for (final path in ranked) {
+      final hash = await _fingerprint(path);
+      if (hash != null) photoHashes[path] = hash;
+    }
+
+    final picks = <String>[];
+    for (final path in ranked) {
+      final hash = photoHashes[path];
+
+      final duplicate = hash != null &&
+          picks.any((selected) {
+            final other = photoHashes[selected];
+            return other != null && _distance(hash, other) <= 6;
+          });
+
+      if (!duplicate) picks.add(path);
+      if (picks.length == 3) break;
+    }
+
+    if (mounted) setState(() => cachedPicks = picks);
+  }
 
   List<String> get visible {
     if (tab == 0) {
-      // Rank photos by PosePilot ShotQuality.
-      // AI PICKS contains only photos that passed Human Gate + quality.
-      // Rejected photos remain available in ALL.
-      final ranked = widget.paths
-          .where((path) => (widget.quality[path] ?? 0.0) >= 0.42)
-          .toList()
-        ..sort(
-          (a, b) =>
-              (widget.quality[b] ?? 0.0).compareTo(widget.quality[a] ?? 0.0),
-        );
-
-      return ranked.take(ranked.length < 3 ? ranked.length : 3).toList();
+      return cachedPicks ?? [];
     }
     if (tab == 2) {
       return widget.paths.where(favorites.contains).toList();
