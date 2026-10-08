@@ -101,7 +101,8 @@ class CameraScreen extends StatefulWidget {
   State<CameraScreen> createState() => _CameraScreenState();
 }
 
-class _CameraScreenState extends State<CameraScreen> {
+class _CameraScreenState extends State<CameraScreen>
+    with WidgetsBindingObserver {
   double lightLevel = 0.0;
   String lightAdvice = 'Analyzing your light';
 
@@ -191,8 +192,26 @@ class _CameraScreenState extends State<CameraScreen> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _restorePhotos();
     initCamera();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.inactive ||
+        state == AppLifecycleState.paused ||
+        state == AppLifecycleState.detached) {
+      paused = true;
+      final oldCamera = camera;
+      camera = null;
+      oldCamera?.dispose();
+    } else if (state == AppLifecycleState.resumed) {
+      paused = false;
+      if (camera == null) {
+        initCamera();
+      }
+    }
   }
 
   Future<void> initCamera() async {
@@ -611,6 +630,7 @@ class _CameraScreenState extends State<CameraScreen> {
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     camera?.dispose();
     detector.close();
     faceDetector.close();
