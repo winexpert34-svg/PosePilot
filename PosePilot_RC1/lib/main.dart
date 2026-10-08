@@ -1075,7 +1075,7 @@ class _GalleryState extends State<Gallery> {
       final duplicate = hash != null &&
           picks.any((selected) {
             final other = photoHashes[selected];
-            return other != null && _distance(hash, other) <= 6;
+            return other != null && _distance(hash, other) <= 3;
           });
 
       if (!duplicate) picks.add(path);
