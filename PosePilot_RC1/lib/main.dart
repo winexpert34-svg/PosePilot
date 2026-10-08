@@ -1,4 +1,5 @@
 import 'dart:math';
+import 'dart:ui' show ImageByteFormat, instantiateImageCodec;
 import 'package:gal/gal.dart';
 import 'models/pose.dart';
 import 'dart:io';
@@ -375,6 +376,59 @@ class _CameraScreenState extends State<CameraScreen> {
         debugPrint('PosePilot Human Gate failed: $e');
       }
 
+      // AI Picks 2.0: estimate sharpness on the captured JPEG.
+      // Sharpness changes ranking only, never human eligibility.
+      double sharpnessScore = 1.0;
+      try {
+        final bytes = await File(photo.path).readAsBytes();
+        final codec = await instantiateImageCodec(
+          bytes,
+          targetWidth: 160,
+        );
+        final frame = await codec.getNextFrame();
+        final image = frame.image;
+        final data = await image.toByteData(
+          format: ImageByteFormat.rawRgba,
+        );
+        if (data != null) {
+          final pixels = data.buffer.asUint8List();
+          final width = image.width;
+          final height = image.height;
+          double differences = 0;
+          int samples = 0;
+
+          for (int y = 1; y < height - 1; y += 2) {
+            for (int x = 1; x < width - 1; x += 2) {
+              final i = (y * width + x) * 4;
+              final right = i + 4;
+              final below = i + width * 4;
+              final brightness =
+                  (pixels[i] + pixels[i + 1] + pixels[i + 2]) / 3.0;
+              final rightBrightness =
+                  (pixels[right] + pixels[right + 1] + pixels[right + 2]) / 3.0;
+              final belowBrightness =
+                  (pixels[below] + pixels[below + 1] + pixels[below + 2]) / 3.0;
+              differences += (brightness - rightBrightness).abs() +
+                  (brightness - belowBrightness).abs();
+              samples += 2;
+            }
+          }
+
+          if (samples > 0) {
+            final detail = differences / samples;
+            sharpnessScore = (0.80 + 0.20 * (detail / 18.0).clamp(0.0, 1.0))
+                .clamp(0.80, 1.0);
+            debugPrint(
+              'PosePilot Sharpness: detail=$detail, score=$sharpnessScore',
+            );
+          }
+        }
+        image.dispose();
+        codec.dispose();
+      } catch (e) {
+        debugPrint('PosePilot Sharpness analysis failed: $e');
+      }
+
       // Save every captured PosePilot photo to the phone gallery.
       try {
         await Gal.putImage(photo.path, album: 'PosePilot');
@@ -413,9 +467,12 @@ class _CameraScreenState extends State<CameraScreen> {
       final humanPenalty = personVisibleInPhoto ? 1.0 : 0.0;
       final eligibleForAiPick = personVisibleInPhoto;
 
-      final quality =
-          (baseQuality * qualityPenalty * humanPenalty * compositionScore)
-              .clamp(0.0, 1.0);
+      final quality = (baseQuality *
+              qualityPenalty *
+              humanPenalty *
+              compositionScore *
+              sharpnessScore)
+          .clamp(0.0, 1.0);
 
       captures.add(photo.path);
       shotQuality[photo.path] = quality;
