@@ -750,7 +750,7 @@ class _CameraScreenState extends State<CameraScreen>
                           Text(
                             session.state == ShootState.complete
                                 ? 'Session Complete'
-                                : session.target.name,
+                                : PoseLanguage.translate(session.target.name),
                             textAlign: TextAlign.center,
                             style: const TextStyle(
                               color: accent,
