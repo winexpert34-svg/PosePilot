@@ -6,7 +6,38 @@ class GhostOverlay extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => IgnorePointer(
-        child: CustomPaint(painter: _GhostPainter(score), size: Size.infinite),
+        child: Stack(
+          fit: StackFit.expand,
+          children: [
+            CustomPaint(painter: _GhostPainter(score)),
+            Positioned(
+              left: 16,
+              right: 16,
+              bottom: 80,
+              child: Center(
+                child: Text(
+                  score >= 0.80
+                      ? 'Отличная поза!'
+                      : score >= 0.55
+                          ? 'Почти получилось!'
+                          : 'Попробуй повторить силуэт',
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(
+                    color: Color(0xFFFFFFFF),
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    shadows: [
+                      Shadow(
+                        color: Color(0xFF000000),
+                        blurRadius: 8,
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
       );
 }
 
