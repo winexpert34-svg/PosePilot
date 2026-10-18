@@ -1,3 +1,4 @@
+import 'pose_language.dart';
 import 'dart:ui' show ImageByteFormat, instantiateImageCodec;
 import 'package:gal/gal.dart';
 import 'package:path_provider/path_provider.dart';
@@ -127,7 +128,7 @@ class _CameraScreenState extends State<CameraScreen>
   final gate = StabilityGate(requiredMs: 350);
   final session = SessionEngine(total: 10);
   bool processing = false, shooting = false, auto = true, paused = false;
-  String guidance = 'Step into frame';
+  String guidance = PoseLanguage.translate('Step into frame');
   double score = 0, confidence = 0;
   String? error;
   int lastFrame = 0;
@@ -335,7 +336,7 @@ class _CameraScreenState extends State<CameraScreen>
         setState(() {
           score = 0;
           confidence = 0;
-          guidance = 'Step into frame';
+          guidance = PoseLanguage.translate('Step into frame');
         });
         return;
       }
@@ -817,7 +818,8 @@ class _CameraScreenState extends State<CameraScreen>
                               setState(() {
                                 score = 0;
                                 confidence = 0;
-                                guidance = session.target.cue;
+                                guidance =
+                                    PoseLanguage.translate(session.target.cue);
                                 error = null;
                               });
                             }
