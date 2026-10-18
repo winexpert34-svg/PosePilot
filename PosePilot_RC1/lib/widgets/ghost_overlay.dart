@@ -16,8 +16,12 @@ class _GhostPainter extends CustomPainter {
   @override
   void paint(Canvas c, Size s) {
     final p = Paint()
-      ..color = const Color(0xFFB8A7FF)
-          .withValues(alpha: .28 + .5 * score.clamp(0, 1))
+      ..color = score >= 0.80
+          ? const Color(0xFF35D07F)
+          : score >= 0.55
+              ? const Color(0xFFFFC857)
+              : const Color(0xFFFF6565)
+                  .withValues(alpha: .28 + .5 * score.clamp(0, 1))
       ..strokeWidth = 5
       ..strokeCap = StrokeCap.round
       ..style = PaintingStyle.stroke;
