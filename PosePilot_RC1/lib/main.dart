@@ -656,6 +656,7 @@ class _CameraScreenState extends State<CameraScreen>
                   Positioned.fill(
                     child: GhostOverlay(
                       score: score,
+                      target: session.target,
                     ),
                   ),
 
